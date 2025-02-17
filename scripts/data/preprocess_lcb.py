@@ -68,6 +68,7 @@ def convert(row):
     metadata = json.loads(row.metadata)
     if "func_name" in metadata:
         formatted_test["input_output"]["fn_name"] = metadata["func_name"]
+    formatted_test["input_output"] = json.dumps(formatted_test["input_output"])
     row["test"] = json.dumps(formatted_test)
 
     row["labels"] = {
