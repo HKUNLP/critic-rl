@@ -23,11 +23,7 @@ from ctrl.gen.prompt import get_prompter
 
 
 def main(args):
-    input_df = pd.read_json(args.input, lines=True).dropna(subset=["solution"])
-    dataset_df = pd.read_json(args.dataset_path, lines=True)
-
-    # join two with `task_id`
-    df = input_df.merge(dataset_df, on="task_id")
+    df = pd.read_json(args.input, lines=True)
 
     # format context messages
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
@@ -40,7 +36,7 @@ def main(args):
         messages.append(
             {
                 "role": "user",
-                "content": prompter.get_critique_prompt(row["prompt"], row["solution"]),
+                "content": prompter.get_gen_prompt(row["prompt"]),
             }
         )
         if args.keep_chat:
@@ -49,19 +45,12 @@ def main(args):
             messages, tokenize=False, add_generation_prompt=True
         )
 
-    df["gen_prompt"] = df["prompt"]
     df["prompt"] = df.apply(format_prompt, axis=1)
-
-    # filter long prompts
-    if args.max_prompt_len is not None:
-        df = df[
-            df.prompt.apply(lambda x: len(tokenizer.tokenize(x)) < args.max_prompt_len)
-        ]
 
     df["task_id"] = (
         df["task_id"] + "/" + df.groupby("task_id").cumcount().astype(str)
     )  # avoid duplicate task_id
-    df = df.drop(["critique", "metadata"], axis=1)
+    df.rename(columns={'dataset': 'data_source'}, inplace=True)
     df.to_parquet(args.output)
 
 
@@ -69,12 +58,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=str, help="input file name")
     parser.add_argument("output", type=str, help="output file name")
-    parser.add_argument("--dataset_path", type=str, required=True, help="dataset path")
 
     parser.add_argument(
         "--tokenizer", type=str, default="Qwen/Qwen2.5-Coder-7B-Instruct"
     )
-    parser.add_argument("--max_prompt_len", type=int, default=None)
     parser.add_argument(
         "--system_prompt",
         type=str,

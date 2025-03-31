@@ -1,15 +1,15 @@
-# Copyright (2025) critic-rl Authors 
+# Copyright (2025) critic-rl Authors
 
-# Licensed under the Apache License, Version 2.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 import json
 import os
@@ -45,9 +45,9 @@ def add_fn_info(row):
     if fn_name is None:
         return row
 
-    if f"{fn_name}(" not in row["problem"]:
-        row["problem"] = (
-            f"{row['problem']}\n\nYour code should satisfy these tests:\n```python\n{row['all_uts'][0]}\n```"
+    if f"{fn_name}(" not in row["prompt"]:
+        row["prompt"] = (
+            f"{row['prompt']}\n\nYour code should satisfy these tests:\n```python\n{row['all_uts'][0]}\n```"
         )
 
     return row
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     for split in ds.keys():
         df = ds[split].to_pandas()
         df["task_id"] = np.arange(len(df))
-        df["problem"] = df["question"].apply(lambda x: x.strip())
+        df["prompt"] = df["question"].apply(lambda x: x.strip())
         df["input_output"] = df["input_output"].apply(json.loads)
         df = df.apply(separate_io_fncall, axis=1)
         df = df.apply(format_uts, axis=1)
@@ -147,19 +147,17 @@ if __name__ == "__main__":
         # filter out single uts
         df = df[df.all_uts.apply(lambda x: len(x) > 0)]
 
-        # filter out <image> problem
-        df = df[df.problem.apply(lambda x: "<image>" not in x)]
+        # filter out <image> prompt
+        df = df[df.prompt.apply(lambda x: "<image>" not in x)]
 
-        # filter out problem that contains weird characters
-        df = df[df.problem.apply(lambda x: "<span " not in x)]
+        # filter out prompt that contains weird characters
+        df = df[df.prompt.apply(lambda x: "<span " not in x)]
 
-        # control problem length
+        # control prompt length
         if split == "train":
-            df["problem_len"] = df["problem"].apply(
-                lambda x: len(tokenizer.tokenize(x))
-            )
-            df = df[df["problem_len"] < 2048]
-            df = df[df["problem_len"] > 64]
+            df["prompt_len"] = df["prompt"].apply(lambda x: len(tokenizer.tokenize(x)))
+            df = df[df["prompt_len"] < 2048]
+            df = df[df["prompt_len"] > 64]
 
         df["all_uts"] = df.apply(
             lambda row: (
@@ -181,32 +179,36 @@ if __name__ == "__main__":
 
         df["time_limit"] = df["time_limit"].apply(extract_float1)
 
-        df = df[["task_id", "problem", "all_uts", "fn_name", "time_limit"]]
-
         # deduplicate
-        df = df.drop_duplicates(subset=["problem"])
+        df = df.drop_duplicates(subset=["prompt"])
 
-        # remove problems that are in code_contests
-        cc_problems = load_dataset('deepmind/code_contests', split='test')['description']
-        df = df[~df['problem'].isin(cc_problems)]
+        # remove prompts that are in code_contests
+        cc_prompts = load_dataset("deepmind/code_contests", split="test")["description"]
+        df = df[~df["prompt"].isin(cc_prompts)]
+
+        # rename
+        df.rename(columns={"all_uts": "test"}, inplace=True)
+
+        # add dataset label
+        df["dataset"] = df["fn_name"].apply(
+            lambda x: "mbppplus" if x is not None else "code_contests"
+        )
+
+        # add info label
+        df["info"] = df.apply(
+            lambda row: json.dumps(
+                {
+                    "test": row["test"],
+                    "fn_name": row["fn_name"],
+                    "time_limit": row["time_limit"],
+                }
+            ),
+            axis=1,
+        )
 
         # save to jsonl
-        assert_df = df.dropna(subset=["fn_name"])
-        assert_df.to_json(
-            f"scripts/data/taco/{split}_assert.jsonl",
-            lines=True,
-            orient="records",
-            force_ascii=False,
-        )
-
-        io_df = df[df["fn_name"].isnull()]
-        io_df.to_json(
-            f"scripts/data/taco/{split}_io.jsonl",
-            lines=True,
-            orient="records",
-            force_ascii=False,
-        )
-        df.to_json(
+        df["task_id"] = df.apply(lambda x: f"taco/{split}/{x['task_id']}", axis=1)
+        df[["task_id", "prompt", "dataset", "info"]].to_json(
             f"scripts/data/taco/{split}.jsonl",
             lines=True,
             orient="records",

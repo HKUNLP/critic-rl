@@ -1,4 +1,16 @@
+antlr4-python3-runtime==4.11
+math-verify[antlr4_11_0]
 deepspeed==0.15.0
 sandbox-fusion
+omegaconf==2.4.0.dev3  # antlr4 compatible
+hydra-core==1.4.0.dev1  # antlr4 compatible
+pylatexenc
+evaluate
+rouge-score
+matplotlib
+seaborn
+tabulate
+langdetect
+immutabledict
 git+https://github.com/volcengine/verl.git@483fa8ac76fc4d149feeff4368d380a93e4246be
 git+https://github.com/zhxieml/rayinfer.git

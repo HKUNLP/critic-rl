@@ -67,9 +67,7 @@ for split in "io" "assert"; do
         ${output_dir}/${jobname}-${split}-zeroshot.jsonl \
         ${jobname}-${split}.parquet \
         --dataset_path scripts/data/taco/train_${split}.jsonl \
-        --split_name ${split} \
-        --keep_chat \
-        --prompter_type $split
+        --keep_chat
 done
 
 cat sft_32b_assert.jsonl sft_32b_io.jsonl > sft_32b.jsonl

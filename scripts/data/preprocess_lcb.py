@@ -1,15 +1,15 @@
-# Copyright (2025) critic-rl Authors 
+# Copyright (2025) critic-rl Authors
 
-# Licensed under the Apache License, Version 2.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 import base64
 import json
@@ -101,17 +101,35 @@ if __name__ == "__main__":
         filtered_df = df[mask]
 
         filtered_df = filtered_df.apply(convert, axis=1)
-        filtered_df["id"] = range(len(filtered_df))
+        filtered_df["task_id"] = range(len(filtered_df))
+        filtered_df["dataset"] = "livecodebench"
+        filtered_df["prompt"] = filtered_df["content"]
         filtered_df = filtered_df[
             [
-                "id",
+                "task_id",
+                "prompt",
+                "dataset",
                 "content",
                 "test",
                 "labels",
             ]
         ]
 
-        filtered_df.to_json(
+        filtered_df["info"] = filtered_df.apply(
+            lambda x: json.dumps(
+                {
+                    "id": x["task_id"],
+                    "content": x["content"],
+                    "test": x["test"],
+                    "labels": x["labels"],
+                }
+            ),
+            axis=1,
+        )
+        filtered_df["task_id"] = filtered_df.apply(
+            lambda x: f"livecodebench_20240811/{split}/{x['task_id']}", axis=1
+        )
+        filtered_df[["prompt", "task_id", "info", "dataset"]].to_json(
             f"scripts/data/livecodebench_20240811/{split}.jsonl",
             lines=True,
             orient="records",

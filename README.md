@@ -89,6 +89,13 @@ We evaluate the model with the following command (e.g., for CodeContests):
 bash examples/eval_codecontests.sh
 ```
 
+## 🔧 Development
+Please install the pre-commit hooks with the following command, before committing your code:
+```bash
+pip install pre-commit black
+pre-commit install
+```
+
 ## 📚 Citation
 If you find this project useful, please consider citing:
 ```bibtex

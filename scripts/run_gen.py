@@ -1,30 +1,26 @@
-# Copyright (2025) critic-rl Authors 
+# Copyright (2025) critic-rl Authors
 
-# Licensed under the Apache License, Version 2.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
 import asyncio
+import json
 import random
 
 import pandas as pd
 from omegaconf import OmegaConf
 from tqdm.asyncio import tqdm_asyncio
 
-from ctrl.eval.eval_utils import sanitize
-from ctrl.eval.sandbox_utils import (
-    EvalResult,
-    get_submit_fn,
-    submit_to_sandbox,
-)
+from ctrl.eval.score_utils import apply_verifiable_reward
 from ctrl.gen.api import (
     async_chat_api_response,
     build_singleturn_messages,
@@ -41,8 +37,8 @@ async def main(args):
     )
     raw_df = raw_df.head(args.num_samples) if args.num_samples is not None else raw_df
     ds = {
-        idx: {args.id_field: idx, **data}
-        for idx, data in raw_df.set_index(args.id_field).to_dict(orient="index").items()
+        idx: {"task_id": idx, **data}
+        for idx, data in raw_df.set_index("task_id").to_dict(orient="index").items()
     }
 
     # construct tree
@@ -68,9 +64,6 @@ async def main(args):
     if args.critic_config_file is not None:
         critic_conf = OmegaConf.load(args.critic_config_file)
 
-    # load prompter
-    prompter = get_prompter(args.prompter_type)
-
     async def async_response_with_semaphore(messages, conf, semaphore=None):
         async with semaphore if semaphore is not None else asyncio.Semaphore(1):
             response = await async_chat_api_response(messages, **conf)
@@ -83,14 +76,18 @@ async def main(args):
         for depth, nodes in nodes_to_expand.items():  # NOTE: currently only one level
             # prepare data
             task_ids = [s.task_id for s in nodes]
-            problems = [ds[task_id][args.problem_field] for task_id in task_ids]
+            problems = [ds[task_id]["prompt"] for task_id in task_ids]
+            datasets = [ds[task_id]["dataset"] for task_id in task_ids]
             solutions = [s.solution for s in nodes]
             node_type = nodes[0].node_type  # same for all
 
             # construct messages for new solutions
             critiques = None
             if node_type == NodeType.ROOT:
-                gen_prompts = [prompter.get_gen_prompt(p) for p in problems]
+                gen_prompts = [
+                    get_prompter(dataset).get_gen_prompt(p)
+                    for p, dataset in zip(problems, datasets)
+                ]
                 new_messages = [
                     build_singleturn_messages(p, args.generator_system_prompt)
                     for p in gen_prompts
@@ -107,24 +104,20 @@ async def main(args):
 
                     # get execution results
                     task_id = node.task_id
-                    example = ds[task_id]
-                    req = get_submit_fn(args.prompter_type)(
-                        example, response, args.test_field
+                    sample = ds[task_id]
+                    dataset = sample["dataset"]
+                    info = json.loads(sample["info"]) if isinstance(sample["info"], str) else sample["info"]
+                    success, metadata = await apply_verifiable_reward(
+                        response, dataset=dataset, info=info
                     )
-                    res = await submit_to_sandbox(req, asyncio.Semaphore(1))
 
                     return Node(
                         task_id=task_id,
                         solution=response,
-                        sanitized_solution=sanitize(response),
                         critique=None,
                         node_type=Tree.next_node_type(node_type),
-                        success=float(
-                            res.accepted
-                            if isinstance(res, EvalResult)
-                            else res.status == "Success"
-                        ),
-                        metadata=dict(result=res.dict()),
+                        success=success,
+                        metadata=metadata,
                         prev_hash=node.hash,
                         hash=Tree.generate_random_hash(),
                     )
@@ -141,11 +134,12 @@ async def main(args):
                 # use semaphore to limit the number of requests
                 semaphore = asyncio.Semaphore(args.max_requests)
 
-                async def critique_then_correct(node, problem, solution):
+                async def critique_then_correct(node, problem, solution, dataset):
+                    prompter = get_prompter(dataset)
                     async with semaphore:
                         if args.critic_mode == "critique":
                             critic_prompt = prompter.get_critique_prompt(
-                                problem, sanitize(solution)
+                                problem, solution
                             )
                         else:
                             eval_res = node.metadata["result"]
@@ -174,6 +168,12 @@ async def main(args):
                                 ]
                             )
 
+                        if args.critic_reasoning:
+                            if "</think>" not in critique:
+                                critique = ""
+                            else:
+                                critique = critique.split("</think>")[1].strip()
+
                         # construct messages for new solutions
                         gen_prompt = prompter.get_gen_prompt(problem)
                         revise_prompt = prompter.get_revised_prompt_mt(critique)
@@ -195,24 +195,20 @@ async def main(args):
 
                     # get execution results
                     task_id = node.task_id
-                    example = ds[task_id]
-                    req = get_submit_fn(args.prompter_type)(
-                        example, response, args.test_field
+                    sample = ds[task_id]
+                    dataset = sample["dataset"]
+                    info = json.loads(sample["info"]) if isinstance(sample["info"], str) else sample["info"]
+                    success, metadata = await apply_verifiable_reward(
+                        response, dataset=dataset, info=info
                     )
-                    res = await submit_to_sandbox(req, asyncio.Semaphore(1))
 
                     return Node(
                         task_id=task_id,
                         solution=response,
-                        sanitized_solution=sanitize(response),
                         critique=critique,
                         node_type=Tree.next_node_type(node_type),
-                        success=float(
-                            res.accepted
-                            if isinstance(res, EvalResult)
-                            else res.status == "Success"
-                        ),
-                        metadata=dict(result=res.dict()),
+                        success=success,
+                        metadata=metadata,
                         prev_hash=node.hash,
                         hash=Tree.generate_random_hash(),
                     )
@@ -220,8 +216,10 @@ async def main(args):
                 # inference
                 new_nodes = await tqdm_asyncio.gather(
                     *[
-                        critique_then_correct(node, problem, solution)
-                        for node, problem, solution in zip(nodes, problems, solutions)
+                        critique_then_correct(node, problem, solution, dataset)
+                        for node, problem, solution, dataset in zip(
+                            nodes, problems, solutions, datasets
+                        )
                     ],
                     desc=f"Generating new solutions for depth {depth} by critique-then-correct",
                     leave=False,
@@ -249,15 +247,11 @@ if __name__ == "__main__":
     parser.add_argument("--max_requests", type=int, default=256)
 
     # data parameters
-    parser.add_argument("--id_field", type=str, default="task_id")
-    parser.add_argument("--problem_field", type=str, default="prompt")
-    parser.add_argument("--test_field", type=str, default="test")
     parser.add_argument("--num_samples", type=int, default=None)
 
     # generation parameters
     parser.add_argument("--generator_config_file", type=str, required=True)
     parser.add_argument("--generator_system_prompt", type=str, default=None)
-    parser.add_argument("--prompter_type", type=str, default="code_contests")
 
     # critic parameters (optional)
     parser.add_argument(
@@ -268,6 +262,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--critic_config_file", type=str, default=None)
     parser.add_argument("--critic_system_prompt", type=str, default=None)
+    parser.add_argument("--critic_reasoning", action="store_true")
 
     # tree arguments
     parser.add_argument("--widths", nargs="+", type=int)

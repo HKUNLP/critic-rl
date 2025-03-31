@@ -1,15 +1,15 @@
-# Copyright (2025) critic-rl Authors 
+# Copyright (2025) critic-rl Authors
 
-# Licensed under the Apache License, Version 2.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 import random
 import re
@@ -152,10 +152,48 @@ class Prompter(ABC):
         pass
 
 
+class BasicPrompter(Prompter):
+    def get_gen_prompt(self, problem: str) -> str:
+        return problem
+
+    def get_critique_prompt(self, problem: str, solution: str) -> str:
+        return f"""{CRITIQUE_INSTRUCTION}
+
+Problem description:
+<problem>
+{problem}
+</problem>
+
+Answer:
+<answer>
+{solution}
+</answer>
+
+Structure your response using the following format (without <format> tags):
+<format>
+Analysis:
+{{Analysis}}
+
+Improvement suggestions:
+{{Suggestions}}
+
+Overall judgment: {{Correct/Incorrect}}
+</format>"""
+
+    def get_revised_prompt_mt(self, critique: str) -> str:
+        critique = extract_critique_from_xml(critique).strip()
+        return f"""{critique}
+
+Please finalize your answer accordingly using the same format."""
+
+    def get_critique_with_exec_prompt(
+        self, problem: str, solution: str, eval_res: dict
+    ) -> str:
+        raise NotImplementedError
+
+
 class CodeContestsPrompter(Prompter):
     _gen_instruction = "Write python code to solve the following coding problem that obeys the constraints and passes the example test cases."
-    _revised_instruction = "You are tasked with revising a draft solution to a problem based on the critique provided. Please provide a revised solution that addresses the feedback and improves the overall quality of the code."
-    _revised_instruction_v5 = "You are tasked with revising a draft solution to a problem based on the critique provided. Please provide a new solution that addresses the feedback and improves the overall quality of the code."
     _solution_format_info = "The output code needs to read from and write to standard IO. Please wrap your code answer using ```."
 
     def get_gen_prompt(self, problem: str) -> str:
@@ -370,12 +408,12 @@ Overall judgment: {{Correct/Incorrect}}
 </format>"""
 
 
-def get_prompter(prompter_type: str) -> Prompter:
-    if prompter_type == "code_contests":
+def get_prompter(dataset_type: str) -> Prompter:
+    if dataset_type == "code_contests":
         return CodeContestsPrompter()
-    elif prompter_type == "livecodebench":
+    elif dataset_type == "livecodebench":
         return LiveCodeBenchPrompter()
-    elif prompter_type == "mbppplus":
+    elif dataset_type == "mbppplus":
         return EvalPlusPrompter()
     else:
-        raise ValueError(f"Invalid prompter type: {prompter_type}")
+        return BasicPrompter()

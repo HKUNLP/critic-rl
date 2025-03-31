@@ -1,0 +1,9 @@
+model: Qwen/Qwen2.5-32B-Instruct  # specified by `--served-model-name`
+api_key: xxx
+base_url: http://localhost:8000/generator/v1
+
+max_tokens: 1024
+temperature: 0.0
+top_p: 0.8
+extra_body:
+  repetition_penalty: 1.05

@@ -11,10 +11,6 @@ critic_model="Critic"
 
 # dataset arguments
 dataset="scripts/data/code_contests/test.jsonl"
-id_field="task_id"
-problem_field="problem"
-test_field="all_uts"
-prompter="code_contests"
 
 output_dir="res/code_contests"
 
@@ -39,15 +35,9 @@ if ! hdfs dfs -test -e ${output_dir}/${jobname}.jsonl; then
     python3 scripts/run_gen.py \
         --output_file ${output_dir}/${jobname}.jsonl \
         --widths 1 5 \
-        --id_field $id_field \
-        --problem_field $problem_field \
-        --test_field $test_field \
         --dataset $dataset \
         --generator_config_file $generator_config_file \
-        --generator_system_prompt "$generator_system_prompt" \
         --critic_config_file $critic_config_file \
-        --critic_system_prompt "$critic_system_prompt" \
-        --prompter_type $prompter \
         --max_requests $MAX_REQUESTS
 fi
 
@@ -74,13 +64,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5.jsonl \
             --widths 1 5 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -114,13 +100,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -154,13 +136,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -194,13 +172,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -234,13 +208,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -274,13 +244,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1_1_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -314,13 +280,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1_1_1_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 1 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results
@@ -354,13 +316,9 @@ for model_name in "${!ckpts[@]}"; do
             --output_file ${output_dir}/${jobname}.jsonl \
             --resume_file ${output_dir}/1_5_1_1_1_1_1_1_1-critic-${model_name}.jsonl \
             --widths 1 5 1 1 1 1 1 1 1 1 \
-            --id_field $id_field \
-            --problem_field $problem_field \
-            --test_field $test_field \
             --dataset $dataset \
             --generator_config_file $generator_greedy_config_file \
             --critic_config_file $used_critic_config_file \
-            --prompter_type $prompter \
             --max_requests $MAX_REQUESTS
 
         # Plot results

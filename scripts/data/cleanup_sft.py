@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Copyright (2025) critic-rl Authors 
 
 # Licensed under the Apache License, Version 2.0 (the "License"); 
@@ -10,6 +11,20 @@
 # distributed under the License is distributed on an "AS IS" BASIS, 
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 # See the License for the specific language governing permissions and 
+=======
+# Copyright (2025) critic-rl Authors
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+>>>>>>> 7010bb8 (update plot script)
 # limitations under the License.
 import argparse
 
@@ -17,6 +32,10 @@ import numpy as np
 import pandas as pd
 from transformers import AutoTokenizer
 
+<<<<<<< HEAD
+=======
+from ctrl.eval.code_utils import sanitize
+>>>>>>> 7010bb8 (update plot script)
 from ctrl.gen.prompt import get_prompter
 from ctrl.gen.tree import NodeType
 
@@ -43,12 +62,20 @@ def main(args):
     prev_df = resume_df[resume_df.node_type == NodeType.GENERATION.value]
 
     # build critic instruction
+<<<<<<< HEAD
     prompter = get_prompter(args.prompter_type)
+=======
+    prompter = get_prompter(args.dataset_type)
+>>>>>>> 7010bb8 (update plot script)
 
     def build_critic_instruction(row):
         return prompter.get_critique_prompt(
             ds[row[args.id_field]][args.problem_field],
+<<<<<<< HEAD
             prev_df[prev_df.hash == row.prev_hash]["sanitized_solution"].iloc[0],
+=======
+            sanitize(prev_df[prev_df.hash == row.prev_hash]).iloc[0],
+>>>>>>> 7010bb8 (update plot script)
         )
 
     curr_df["critic_instruction"] = curr_df.apply(build_critic_instruction, axis=1)
@@ -124,7 +151,11 @@ if __name__ == "__main__":
     parser.add_argument("--id_field", type=str, default="task_id")
     parser.add_argument("--problem_field", type=str, default="problem")
     parser.add_argument("--success_field", type=str, default="success")
+<<<<<<< HEAD
     parser.add_argument("--prompter_type", type=str, default="code_contests")
+=======
+    parser.add_argument("--dataset_type", type=str, default="code_contests")
+>>>>>>> 7010bb8 (update plot script)
     parser.add_argument(
         "--tokenizer", type=str, default="Qwen/Qwen2.5-Coder-7B-Instruct"
     )
