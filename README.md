@@ -22,6 +22,10 @@ We propose **CTRL**, a framework that trains LLMs to critique **without human su
 <p align="center">
   <img src="https://critic-rl.github.io/static/images/illustration_v2.png" width="100%" alt="teaser">
 
+## 📢 News
+- 2025-05: CTRL has been accepted to ICML 2025 🎉🎉
+- 2025-02: We released our [paper](https://arxiv.org/abs/2502.03492) and codebase, announced via [this tweet](https://x.com/_zhihuixie/status/1889576723425141079).
+
 ## 🎯 Key Results
 
 <p align="center">
